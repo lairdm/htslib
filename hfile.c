@@ -29,6 +29,7 @@ DEALINGS IN THE SOFTWARE.  */
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <sys/mman.h>
 
 #include <pthread.h>
 
@@ -621,6 +622,7 @@ static const struct hFILE_backend mem_backend =
 
 static hFILE *hopen_mem(const char *data, const char *mode)
 {
+
     if (strncmp(data, "data:", 5) == 0) data += 5;
 
     // TODO Implement write modes, which will require memory allocation
@@ -636,6 +638,46 @@ static hFILE *hopen_mem(const char *data, const char *mode)
     return &fp->base;
 }
 
+static hFILE *hopen_mmap(const char *file, const char *mode)
+{
+  /* The file descriptor. */
+  int fd;
+  /* Information about the file. */
+  struct stat s;
+  int status;
+  size_t size;
+  /* The memory-mapped thing itself. */
+  const char * mapped;
+
+  if (strncmp(file, "mmap:", 5) == 0) file += 5;
+
+  if (strchr(mode, 'r') == NULL) { errno = EINVAL; return NULL; }
+
+  fd = open(file, O_RDONLY);
+  // Ensure the file openned properly
+  if(fd < 0) { errno = EINVAL; return NULL; }
+
+  status = fstat(fd, & s);
+  // Check the file size
+  if(status < 0) { errno = EINVAL; return NULL; }
+  size = s.st_size;
+
+  mapped = mmap(0, size, PROT_READ, MAP_SHARED, fd, 0);
+  if(mapped == MAP_FAILED) {
+      printf("mmap %s failed: %s\n",
+	     file, strerror (errno));
+      errno = EINVAL; return NULL; }
+
+  hFILE_mem *fp = (hFILE_mem *) hfile_init(sizeof (hFILE_mem), mode, 0);
+  if (fp == NULL) return NULL;
+
+  fp->buffer = mapped;
+  fp->length = size;
+  fp->pos = 0;
+  fp->base.backend = &mem_backend;
+  return &fp->base;
+
+}
 
 /*****************************************
  * Plugin and hopen() backend dispatcher *
@@ -718,12 +760,14 @@ static void load_hfile_plugins()
 {
     static const struct hFILE_scheme_handler
         data = { hopen_mem, hfile_always_local, "built-in", 80 },
+        mmap = { hopen_mmap, hfile_always_local, "built-in", 80 },
         file = { hopen_fd_fileuri, hfile_always_local, "built-in", 80 };
 
     schemes = kh_init(scheme_string);
     if (schemes == NULL) abort();
 
     hfile_add_scheme_handler("data", &data);
+    hfile_add_scheme_handler("mmap", &mmap);
     hfile_add_scheme_handler("file", &file);
     init_add_plugin(NULL, hfile_plugin_init_net, "knetfile");
 

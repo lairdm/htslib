@@ -326,8 +326,11 @@ faidx_t *fai_load(const char *fn)
     char *str;
     FILE *fp;
     faidx_t *fai;
+    char *mmap_fn;
     str = (char*)calloc(strlen(fn) + 5, 1);
     sprintf(str, "%s.fai", fn);
+    mmap_fn = (char*)calloc(strlen(fn) + 6, 1);
+    sprintf(mmap_fn, "mmap:%s", fn);
 
     if (hisremote(str))
     {
@@ -363,7 +366,7 @@ faidx_t *fai_load(const char *fn)
         return NULL;
     }
 
-    fai->bgzf = bgzf_open(fn, "rb");
+    fai->bgzf = bgzf_open(mmap_fn, "rb");
     if (fai->bgzf == 0) {
         fprintf(stderr, "[fai_load] fail to open FASTA file.\n");
         return 0;
