@@ -638,6 +638,37 @@ static hFILE *hopen_mem(const char *data, const char *mode)
     return &fp->base;
 }
 
+/****************
+ * Mmap backend *
+ ****************/
+
+/* Take advantage of type pruning to reuse
+   the mem_ functions for seeking and reading */
+
+typedef struct {
+    hFILE base;
+    const char *buffer;
+    size_t length, pos;
+    int fd;
+} hFILE_mmap;
+
+static int mmap_close(hFILE *fpv)
+{
+    hFILE_mmap *fp = (hFILE_mmap *) fpv;
+
+    /* Unmap the file's memory space, close the file
+       descriptor and free the struct */
+    munmap((void*)fp->buffer, fp->length);
+    close(fp->fd);
+
+    return 0;
+}
+
+static const struct hFILE_backend mmap_backend =
+{
+    mem_read, NULL, mem_seek, NULL, mmap_close
+};
+
 static hFILE *hopen_mmap(const char *file, const char *mode)
 {
   /* The file descriptor. */
@@ -668,13 +699,14 @@ static hFILE *hopen_mmap(const char *file, const char *mode)
 	     file, strerror (errno));
       errno = EINVAL; return NULL; }
 
-  hFILE_mem *fp = (hFILE_mem *) hfile_init(sizeof (hFILE_mem), mode, 0);
+  hFILE_mmap *fp = (hFILE_mmap *) hfile_init(sizeof (hFILE_mmap), mode, 0);
   if (fp == NULL) return NULL;
 
   fp->buffer = mapped;
   fp->length = size;
   fp->pos = 0;
-  fp->base.backend = &mem_backend;
+  fp->fd = fd;
+  fp->base.backend = &mmap_backend;
   return &fp->base;
 
 }
