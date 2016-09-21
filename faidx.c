@@ -526,33 +526,3 @@ int faidx_has_seq(const faidx_t *fai, const char *seq)
     if (iter == kh_end(fai->hash)) return 0;
     return 1;
 }
-faidx_keys* faidx_fetch_keys(const faidx_t *fai) {
-    khint_t k;
-    faidx_keys* keys = NULL;
-    faidx_keys* current_key = NULL;
-
-    if (fai == NULL || fai->hash == NULL) {
-      return NULL;
-    }
-
-    for (k = kh_begin(fai->hash); k < kh_end(fai->hash); ++k) {
-	if(!kh_exist(fai->hash, k)) continue;
-
-	current_key = malloc(sizeof(faidx_keys));
-	current_key->key = kh_key(fai->hash, k);
-	current_key->next = (struct faidx_keys*)keys;
-	keys = current_key;
-    }
-
-    return keys;
-}
-
-void faidx_keys_destroy(faidx_keys* keys) {
-    faidx_keys* t_key;
-
-    while(keys != NULL) {
-        t_key = keys;
-	keys = (faidx_keys*)keys->next;
-	free(t_key);
-    }
-}

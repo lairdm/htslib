@@ -53,11 +53,6 @@ struct __faidx_t;
 /// Opaque structure representing FASTA index
 typedef struct __faidx_t faidx_t;
 
-typedef struct {
-  const char* key;
-  struct faidx_keys* next;
-} faidx_keys;
-
 /// Build index for a FASTA or bgzip-compressed FASTA file.
 /** @param  fn  FASTA file name
     @return     0 on success; or -1 on failure
@@ -119,22 +114,6 @@ const char *faidx_iseq(const faidx_t *fai, int i);
 
 /// Return sequence length, -1 if not present
 int faidx_seq_len(const faidx_t *fai, const char *seq);
-
-/// Return a linked list of keys in the index
-/**  @param  fai Pointer to the faidx_t struct
-     @return     Linked list of keys in the index
-
-The returned linked is allocated by `malloc()` family and should be
-destroyed by end users by calling `free()` on the elements or
-calling faidx_keys_destroy().
-*/
-faidx_keys* faidx_fetch_keys(const faidx_t *fai);
-
-/// Destroy a linked list of keys
-/**  @param  keys Pointer to the faidx_keys list
-
- */
-void faidx_keys_destroy(faidx_keys* keys);
 
 #ifdef __cplusplus
 }
